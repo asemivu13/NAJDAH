@@ -2,17 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart';
 
-Position currentLocation;
+LocationData myLocation;
+Location location = new Location();
+
+
 class HomePage extends StatelessWidget {
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: getCurrentPosition(desiredAccuracy: LocationAccuracy.high),
+      future: location.getLocation(),
       builder: (context, snapshot) {
+        print ("SNAPSHOT 1 ${snapshot.data}");
         if (snapshot.data == null) {
           print("SNAPSHOT DATA: ${snapshot.data}");
+          location.requestPermission();
           return MaterialApp(
             home: Scaffold(
               body: Center(
@@ -21,9 +27,8 @@ class HomePage extends StatelessWidget {
             ),
           );
         } else {
-          currentLocation = new Position(longitude: snapshot.data.longitude, latitude: snapshot.data.latitude);
-          print(currentLocation.longitude);
-          print(currentLocation.latitude);
+          print ("SNAPSHOT 2 ${snapshot.data}");
+          myLocation = snapshot.data;
           print ("BUILD");
           return MaterialApp(
             home: Scaffold(
@@ -89,38 +94,84 @@ class MapWidget extends StatefulWidget {
 
 class _MapWidgetState extends State<MapWidget> {
 
-  final CameraPosition defaultCameraPosition = CameraPosition(
-      zoom: 14,
-      tilt: 0,
-      target: LatLng(0,0)
-  );
   final Set<Marker> helpMarkers = new Set();
   final Completer<GoogleMapController> _controller = Completer();
+
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    location.onLocationChanged.listen((LocationData currentLocation) {
+      myLocation = currentLocation;
+      print ("MY NEW LOCATION $myLocation");
+      updateMarkerAround ();
+    });
+
+  }
   @override
   Widget build(BuildContext context) {
-    print("BUILDX");
-
+    CameraPosition defaultCameraPosition = CameraPosition(
+        zoom: 14,
+        tilt: 0,
+        target: LatLng(0,0)
+    );
+    if (myLocation != null) {
+      defaultCameraPosition = CameraPosition(
+          target: LatLng(
+              myLocation.latitude,
+              myLocation.longitude
+          ),
+          zoom: 14,
+          tilt: 0,
+      );
+    }
     return Stack(
         children: [
           GoogleMap(
             mapType: MapType.normal,
-            initialCameraPosition: CameraPosition(
-              zoom: 14,
-              tilt: 0,
-              target: LatLng(currentLocation.latitude,currentLocation.longitude)
-            ),
+            initialCameraPosition: defaultCameraPosition,
             markers: helpMarkers,
             myLocationEnabled: true,
             compassEnabled: true,
             buildingsEnabled: false,
             onMapCreated: (GoogleMapController controller) {
               _controller.complete(controller);
+
+              showMarkerOnMap ();
             },
             zoomControlsEnabled: false,
           ),
         ],
       );
     }
-  }
+    void showMarkerOnMap () {
+      var currentMarkerOnPosition = LatLng(
+        myLocation.latitude,
+        myLocation.longitude
+      );
+
+      helpMarkers.add(Marker(
+        markerId: MarkerId('sourceMarker'),
+        position: currentMarkerOnPosition,
+      ));
+    }
+    void updateMarkerAround () async {
+      final GoogleMapController controller = await _controller.future;
+      controller.moveCamera(CameraUpdate.newLatLng(LatLng(myLocation.latitude, myLocation.longitude)));
+      setState(() {
+        var currentMarkerPosition = LatLng(
+          myLocation.latitude,
+          myLocation.longitude
+        );
+        helpMarkers.removeWhere((element) => element.markerId.value == 'sourceMarker');
+        helpMarkers.add(Marker(
+          markerId: MarkerId('sourceMarker'),
+          position: currentMarkerPosition
+        ));
+      });
+    }
+}
 
 

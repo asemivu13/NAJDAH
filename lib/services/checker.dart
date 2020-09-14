@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:najdah/main.dart';
 import 'package:najdah/screens/home_page.dart';
 import 'package:najdah/services/auth.dart';
-import 'dart:async';
 
 class Checker extends StatelessWidget {
-  bool isLoding = false;
   @override
   Widget build(BuildContext context) {
     Auth serviceAuth = new Auth();
