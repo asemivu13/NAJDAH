@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 class Auth {
   final FirebaseAuth auth = FirebaseAuth.instance;
@@ -14,6 +13,17 @@ class Auth {
       return result;
     }
 
+  }
+  // Register
+  Future register (String fullName, String email, String password, int phoneNumber) async {
+    UserCredential result;
+    try {
+      result = await auth.createUserWithEmailAndPassword(email: email, password: password);
+      print ("$fullName + $email + $password + $phoneNumber");
+      return result;
+    } catch (error) {
+      return result;
+    }
   }
   // Sign Out
   Future<void> signOut () async {

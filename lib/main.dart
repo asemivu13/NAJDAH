@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:najdah/screens/home_page.dart';
 import 'package:najdah/screens/register.dart';
 import 'package:najdah/services/auth.dart';
 
@@ -56,11 +56,6 @@ class _LoginScreenState extends State <LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Validation for email and password
-    const String EMAIL_PATTERN = r'(^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$)';
-    RegExp emailRegExp = new RegExp(EMAIL_PATTERN);
-    const String PASSWORD_PATTERN = r'(^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{6,}$)';
-    RegExp passwordRegExp = new RegExp(PASSWORD_PATTERN);
     // Building Login Form
     return Scaffold(
       body: Container(
@@ -85,8 +80,6 @@ class _LoginScreenState extends State <LoginScreen> {
                 validator: (value) {
                   if (value.isEmpty) {
                     return 'Enter Your Email';
-                  } else if (!emailRegExp.hasMatch(value)) {
-                    return 'Enter a vaild Email';
                   }
                   return null;
                 },
@@ -99,14 +92,13 @@ class _LoginScreenState extends State <LoginScreen> {
                 validator: (value) {
                   if (value.isEmpty) {
                     return 'Enter Your Password';
-                  } else if (!passwordRegExp.hasMatch(value)) {
-                    return 'Enter a valid password. A vaild password must have at least 6 characters and a letter and number';
                   }
                   return null;
                 },
                 decoration: InputDecoration(
                   labelText: 'Password',
                 ),
+                obscureText: true,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -151,6 +143,11 @@ class _LoginScreenState extends State <LoginScreen> {
         _passwordController.value.text
     );
     if (result != null) {
+      Navigator.push(context, MaterialPageRoute(
+          builder: (BuildContext context) {
+            return HomePage ();
+          }
+      ));
       setState(() {
         _success = true;
       });
@@ -160,4 +157,6 @@ class _LoginScreenState extends State <LoginScreen> {
       });
     }
   }
+
+
 }
