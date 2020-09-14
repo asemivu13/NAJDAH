@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:najdah/screens/home_page.dart';
 import 'package:najdah/screens/register.dart';
 import 'package:najdah/services/auth.dart';
+import 'package:najdah/services/checker.dart';
 
 void main() {
   runApp(MaterialApp(
@@ -24,7 +25,7 @@ class _MaintainerState extends State<Maintainer> {
           }
           if (snapshot.connectionState == ConnectionState.done) {
             return MaterialApp(
-                home: LoginScreen());
+                home: Checker());
           } else {
             return MaterialApp(
               home: Scaffold(

@@ -4,7 +4,7 @@ class Auth {
   final FirebaseAuth auth = FirebaseAuth.instance;
 
   // Login
-  Future login (String email, String password) async {
+  Future<UserCredential> login (String email, String password) async {
     UserCredential result;
     try {
       result = await auth.signInWithEmailAndPassword(email: email, password: password);
@@ -15,7 +15,7 @@ class Auth {
 
   }
   // Register
-  Future register (String fullName, String email, String password, int phoneNumber) async {
+  Future<UserCredential> register (String fullName, String email, String password, int phoneNumber) async {
     UserCredential result;
     try {
       result = await auth.createUserWithEmailAndPassword(email: email, password: password);
@@ -32,5 +32,8 @@ class Auth {
     } catch (e) {
       print (e);
     }
+  }
+  Future<User> getCurrentUser() async {
+    return auth.currentUser;
   }
 }
