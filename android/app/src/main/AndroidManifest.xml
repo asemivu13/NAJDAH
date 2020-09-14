@@ -9,6 +9,9 @@
         android:name="io.flutter.app.FlutterApplication"
         android:label="najdah"
         android:icon="@mipmap/ic_launcher">
+        <meta-data android:name="com.google.android.geo.API_KEY"
+            android:value="API_KEY"/>
+        <!-- TODO : MUST REMOVE MY OWN API KEY (USE ENV) -->
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

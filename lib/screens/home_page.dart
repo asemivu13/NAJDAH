@@ -1,6 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class HomePage extends StatelessWidget {
+
+  CameraPosition defaultCameraPosition = CameraPosition(
+    zoom: 14,
+    tilt: 0,
+    target: LatLng(0, 0)
+  );
+  Set<Marker> helpMarkers = new Set();
+  Completer<GoogleMapController> _controller = Completer();
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -50,7 +61,22 @@ class HomePage extends StatelessWidget {
   }
 
   Widget mapWidget () {
-    return Container();
+    return Stack(
+      children: [
+        GoogleMap(
+          mapType: MapType.normal,
+          initialCameraPosition: defaultCameraPosition,
+          markers: helpMarkers,
+          myLocationEnabled: true,
+          compassEnabled: true,
+          buildingsEnabled: false,
+          onMapCreated: (GoogleMapController controller) {
+            _controller.complete(controller);
+          },
+          zoomControlsEnabled: false,
+        ),
+      ],
+    );
   }
 }
 
