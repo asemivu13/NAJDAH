@@ -106,7 +106,7 @@ class _MapWidgetState extends State<MapWidget> {
     location.onLocationChanged.listen((LocationData currentLocation) {
       myLocation = currentLocation;
       print ("MY NEW LOCATION $myLocation");
-      updateMarkerAround ();
+      updateLocation();
     });
 
   }
@@ -138,39 +138,16 @@ class _MapWidgetState extends State<MapWidget> {
             buildingsEnabled: false,
             onMapCreated: (GoogleMapController controller) {
               _controller.complete(controller);
-
-              showMarkerOnMap ();
             },
             zoomControlsEnabled: false,
           ),
         ],
       );
     }
-    void showMarkerOnMap () {
-      var currentMarkerOnPosition = LatLng(
-        myLocation.latitude,
-        myLocation.longitude
-      );
-
-      helpMarkers.add(Marker(
-        markerId: MarkerId('sourceMarker'),
-        position: currentMarkerOnPosition,
-      ));
-    }
-    void updateMarkerAround () async {
+    void updateLocation () async {
+      // Update Camera position
       final GoogleMapController controller = await _controller.future;
       controller.moveCamera(CameraUpdate.newLatLng(LatLng(myLocation.latitude, myLocation.longitude)));
-      setState(() {
-        var currentMarkerPosition = LatLng(
-          myLocation.latitude,
-          myLocation.longitude
-        );
-        helpMarkers.removeWhere((element) => element.markerId.value == 'sourceMarker');
-        helpMarkers.add(Marker(
-          markerId: MarkerId('sourceMarker'),
-          position: currentMarkerPosition
-        ));
-      });
     }
 }
 
