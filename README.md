@@ -1,4 +1,4 @@
-# najdah
+# NAJDAH
 
 Najdah Project
 
