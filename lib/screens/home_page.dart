@@ -43,6 +43,9 @@ class HomePage extends StatelessWidget {
         } else {
           myLocation = snapshot.data;
           return MaterialApp(
+            theme: new ThemeData(
+              canvasColor: Colors.transparent
+            ),
             home: Scaffold(
                 body: MapWidget(), // :: TODO
                 bottomNavigationBar: Container(
@@ -92,6 +95,9 @@ class HomePage extends StatelessWidget {
                   label: Text("Help", style: TextStyle(fontSize: 20),),
                 ),
                 floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+                appBar: AppBar(
+                  title: Text('NAJDAH'),
+                ),
             ),
           );
         }
@@ -113,7 +119,7 @@ class _MapWidgetState extends State<MapWidget> {
   StreamSubscription subscription;
   final Geoflutterfire geoflutterfire = Geoflutterfire();
   final BehaviorSubject<double> circleRadiusBehavior = BehaviorSubject.seeded(RADIUS);
-
+  bool enableInfoBottomSheet;
   @override
   void initState() {
     super.initState();
@@ -127,6 +133,7 @@ class _MapWidgetState extends State<MapWidget> {
       getHelpRequest();
       updateLocation();
     });
+    enableInfoBottomSheet = false;
   }
   @override
   Widget build(BuildContext context) {
@@ -188,14 +195,43 @@ class _MapWidgetState extends State<MapWidget> {
     requestMarkers.clear();
     documentList.forEach((DocumentSnapshot document) {
       GeoPoint geoPoint = document.data()['location']['geopoint'];
+      String requesterID = document.data()['owner'];
       requestMarkers.add(
           Marker(
             markerId: MarkerId(document.data()['location']['geohash']),
             position: LatLng(geoPoint.latitude, geoPoint.longitude),
+            onTap:() {
+              showInfo ();
+            }
           )
       );
     });
     setState(() {});
+  }
+  void showInfo () {
+    showModalBottomSheet(context: context,
+        enableDrag: true,
+        isScrollControlled: true,
+        builder: (BuildContext context) {
+          return Container(
+            color: Colors.transparent,
+            child: Container(
+              margin: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: new BorderRadius.all(Radius.circular(15.0))
+              ),
+              child: Center(
+                child: RaisedButton(
+                  child: Text("Back"),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+            height: 350,
+          );
+        }
+    );
   }
   @override
   void dispose() {
