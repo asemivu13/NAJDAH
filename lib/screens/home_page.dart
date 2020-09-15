@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:wasm';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -120,6 +121,9 @@ class _MapWidgetState extends State<MapWidget> {
   final Geoflutterfire geoflutterfire = Geoflutterfire();
   final BehaviorSubject<double> circleRadiusBehavior = BehaviorSubject.seeded(RADIUS);
   bool enableInfoBottomSheet;
+
+  final CollectionReference requesterCollection = FirebaseFirestore.instance.collection('requester');
+
   @override
   void initState() {
     super.initState();
@@ -201,34 +205,36 @@ class _MapWidgetState extends State<MapWidget> {
             markerId: MarkerId(document.data()['location']['geohash']),
             position: LatLng(geoPoint.latitude, geoPoint.longitude),
             onTap:() {
-              showInfo ();
+              showInfo (requesterID);
             }
           )
       );
     });
     setState(() {});
   }
-  void showInfo () {
+
+  void showInfo (String id) {
+    print ("ID : $id");
     showModalBottomSheet(context: context,
         enableDrag: true,
         isScrollControlled: true,
         builder: (BuildContext context) {
           return Container(
-            color: Colors.transparent,
-            child: Container(
-              margin: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: new BorderRadius.all(Radius.circular(15.0))
-              ),
-              child: Center(
-                child: RaisedButton(
-                  child: Text("Back"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(id).snapshots(),
+              builder: (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
+                if (snapshot.hasError) {
+                  print ("Error");
+                  return Container();
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  print ("Loading");
+                  return Container();
+                }
+                print (snapshot.data.data()["name"]);
+                return Container();
+              },
             ),
-            height: 350,
           );
         }
     );
