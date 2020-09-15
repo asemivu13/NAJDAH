@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:geoflutterfire/geoflutterfire.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:rxdart/rxdart.dart';
 
 LocationData myLocation;
 Location location = new Location();
@@ -58,15 +61,15 @@ class HomePage extends StatelessWidget {
                       margin: EdgeInsets.only(left: 10),
                     ),
                               Container(
-                      child: IconButton(
-                        icon: Icon(Icons.menu), // TODO: CHANGE THE ICON MAYBE
-                        color: Colors.lightBlue,
-                        onPressed: () {
-                          // TODO: CREATE THE MENU PAGE
-                        },
-                      ),
-                      margin: EdgeInsets.only(left: 10),
-                    ),
+                                child: IconButton(
+                                  icon: Icon(Icons.menu), // TODO: CHANGE THE ICON MAYBE
+                                  color: Colors.lightBlue,
+                                  onPressed: () {
+                                  // TODO: CREATE THE MENU PAGE
+                                  },
+                                ),
+                                margin: EdgeInsets.only(left: 10),
+                              ),
                             ],
                         ),
                       ),
@@ -94,9 +97,11 @@ class MapWidget extends StatefulWidget {
 
 class _MapWidgetState extends State<MapWidget> {
 
+  static const double RADIUS = 20;
   final Set<Marker> helpMarkers = new Set();
   final Completer<GoogleMapController> _controller = Completer();
-
+  final BehaviorSubject<double> radiusBehavior = BehaviorSubject.seeded(RADIUS);
+  StreamSubscription subscription;
 
 
   @override
@@ -107,6 +112,7 @@ class _MapWidgetState extends State<MapWidget> {
       myLocation = currentLocation;
       print ("MY NEW LOCATION $myLocation");
       updateLocation();
+      getHelpRequest();
     });
 
   }
@@ -144,11 +150,21 @@ class _MapWidgetState extends State<MapWidget> {
         ],
       );
     }
-    void updateLocation () async {
-      // Update Camera position
-      final GoogleMapController controller = await _controller.future;
-      controller.moveCamera(CameraUpdate.newLatLng(LatLng(myLocation.latitude, myLocation.longitude)));
-    }
+  void updateLocation () async {
+    // Update Camera position
+    final GoogleMapController controller = await _controller.future;
+    controller.animateCamera(CameraUpdate.newLatLng(LatLng(myLocation.latitude, myLocation.longitude)));
+  }
+
+  void getHelpRequest () async {
+    var ref = FirebaseFirestore.instance.collection("location");
+  }
+  @override
+  void dispose() {
+    radiusBehavior.close();
+    subscription.cancel();
+    super.dispose();
+  }
 }
 
 
