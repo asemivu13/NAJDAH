@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geoflutterfire/geoflutterfire.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -13,14 +14,24 @@ Location location = new Location();
 
 class HomePage extends StatelessWidget {
 
+  final Geoflutterfire geo = new Geoflutterfire();
+  final String currentUserID = FirebaseAuth.instance.currentUser.uid;
+  final CollectionReference helpRequestsCollection = FirebaseFirestore.instance.collection('help_requests');
+  // Request Help by get your current location and save it to the database
+  // TODO: More information for the request
+  Future requestHelp () async {
+    GeoFirePoint geoFirePoint = geo.point(latitude: myLocation.latitude, longitude: myLocation.longitude);
+    return helpRequestsCollection.doc(currentUserID).set({
+      'owner': currentUserID,
+      'location': geoFirePoint.data,
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
       future: location.getLocation(),
       builder: (context, snapshot) {
-        print ("SNAPSHOT 1 ${snapshot.data}");
         if (snapshot.data == null) {
-          print("SNAPSHOT DATA: ${snapshot.data}");
           location.requestPermission();
           return MaterialApp(
             home: Scaffold(
@@ -30,9 +41,7 @@ class HomePage extends StatelessWidget {
             ),
           );
         } else {
-          print ("SNAPSHOT 2 ${snapshot.data}");
           myLocation = snapshot.data;
-          print ("BUILD");
           return MaterialApp(
             home: Scaffold(
                 body: MapWidget(), // :: TODO
@@ -77,7 +86,7 @@ class HomePage extends StatelessWidget {
                 ),
                 floatingActionButton: FloatingActionButton.extended (
                   onPressed: () {
-                  // TODO: REQUEST HELP
+                    requestHelp();
                   },
                   icon: Icon(Icons.add),
                   label: Text("Help", style: TextStyle(fontSize: 20),),
@@ -90,6 +99,7 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
 class MapWidget extends StatefulWidget {
   @override
   _MapWidgetState createState() => _MapWidgetState();
@@ -97,24 +107,26 @@ class MapWidget extends StatefulWidget {
 
 class _MapWidgetState extends State<MapWidget> {
 
-  static const double RADIUS = 20;
-  final Set<Marker> helpMarkers = new Set();
+  static const double RADIUS = 10; // TODO: CHANGE THE RADIUS TO REASONABLE NUMBER
+  final Set<Marker> requestMarkers = new Set();
   final Completer<GoogleMapController> _controller = Completer();
-  final BehaviorSubject<double> radiusBehavior = BehaviorSubject.seeded(RADIUS);
   StreamSubscription subscription;
-
+  final Geoflutterfire geoflutterfire = Geoflutterfire();
+  final BehaviorSubject<double> circleRadiusBehavior = BehaviorSubject.seeded(RADIUS);
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    location.changeSettings(
+      interval: 1000,
+      accuracy: LocationAccuracy.high,
+    );
     location.onLocationChanged.listen((LocationData currentLocation) {
+      print (currentLocation);
       myLocation = currentLocation;
-      print ("MY NEW LOCATION $myLocation");
-      updateLocation();
       getHelpRequest();
+      updateLocation();
     });
-
   }
   @override
   Widget build(BuildContext context) {
@@ -138,7 +150,7 @@ class _MapWidgetState extends State<MapWidget> {
           GoogleMap(
             mapType: MapType.normal,
             initialCameraPosition: defaultCameraPosition,
-            markers: helpMarkers,
+            markers: requestMarkers,
             myLocationEnabled: true,
             compassEnabled: true,
             buildingsEnabled: false,
@@ -149,19 +161,45 @@ class _MapWidgetState extends State<MapWidget> {
           ),
         ],
       );
-    }
+  }
+
   void updateLocation () async {
     // Update Camera position
     final GoogleMapController controller = await _controller.future;
     controller.animateCamera(CameraUpdate.newLatLng(LatLng(myLocation.latitude, myLocation.longitude)));
   }
 
+
   void getHelpRequest () async {
-    var ref = FirebaseFirestore.instance.collection("location");
+    var ref = FirebaseFirestore.instance.collection("help_requests");
+    GeoFirePoint geoCenterCurrentLocation = geoflutterfire.point(latitude: myLocation.latitude, longitude: myLocation.longitude);
+    subscription = circleRadiusBehavior.switchMap((circleRadius) {
+      return geoflutterfire.collection(collectionRef: ref).within(
+          center: geoCenterCurrentLocation,
+          radius: circleRadius,
+          field: 'location',
+          strictMode: true
+      );
+    }).listen(listenToMarkers);
+  }
+
+
+  void listenToMarkers(List<DocumentSnapshot> documentList) {
+    requestMarkers.clear();
+    documentList.forEach((DocumentSnapshot document) {
+      GeoPoint geoPoint = document.data()['location']['geopoint'];
+      requestMarkers.add(
+          Marker(
+            markerId: MarkerId(document.data()['location']['geohash']),
+            position: LatLng(geoPoint.latitude, geoPoint.longitude),
+          )
+      );
+    });
+    setState(() {});
   }
   @override
   void dispose() {
-    radiusBehavior.close();
+    circleRadiusBehavior.close();
     subscription.cancel();
     super.dispose();
   }
