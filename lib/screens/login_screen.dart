@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:najdah/Design/already_have_account.dart';
-import 'package:najdah/screens/register.dart';
+import 'package:najdah/screens/register_screen.dart';
 import 'package:najdah/services/auth.dart';
 import 'package:najdah/Design/rounded_button.dart';
 import 'package:najdah/Design/rounded_password_field.dart';
@@ -34,20 +34,51 @@ class _LoginScreenState extends State <LoginScreen> {
                 "LOGIN",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
               ),
-              SizedBox(height: size.height * 0.03),
-              SizedBox(height: size.height * 0.03),
-              RoundedInputField(
-                hintText: "Email",
-                onChanged: (value) {},
+              Form(
+                key: _loginKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: size.height * 0.03),
+                    SizedBox(height: size.height * 0.03),
+                    RoundedInputField(
+                      controller: _emailController,
+                      hintText: "Email",
+                      onChanged: (value) {},
+                      validator: (value) {
+                        if (value.isEmpty) {
+                          return 'Enter Your Email';
+                        }
+                        return null;
+                      },
+                    ),
+                    RoundedPasswordField(
+                      onChanged: (value) {},
+                      controller: _passwordController,
+                      validator: (value) {
+                        if (value.isEmpty) {
+                          return 'Enter Your Password';
+                        }
+                        return null;
+                      },
+                    ),
+                    Text(
+                        _success == null ? '' : (_success ? '' : serviceAuth.errorCode),
+                        style: TextStyle(color: Colors.red),
+                    ),
+                    RoundedButton(
+                      text: "LOGIN",
+                      press: () {
+                        if (_loginKey.currentState.validate()) {
+                          login ();
+                        }
+                      },
+                    ),
+                    SizedBox(height: size.height * 0.03),
+                  ],
+                ),
               ),
-              RoundedPasswordField(
-                onChanged: (value) {},
-              ),
-              RoundedButton(
-                text: "LOGIN",
-                press: () {},
-              ),
-              SizedBox(height: size.height * 0.03),
               AlreadyHaveAnAccountCheck(
                 press: () {
                   Navigator.push(
@@ -71,8 +102,9 @@ class _LoginScreenState extends State <LoginScreen> {
         _emailController.value.text,
         _passwordController.value.text
     );
+
     if (result != null) {
-      Navigator.push(context, MaterialPageRoute(
+      Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (BuildContext context) {
             return HomePage ();
           }
