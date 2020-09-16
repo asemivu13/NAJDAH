@@ -9,6 +9,7 @@ class RoundedInputField extends StatelessWidget {
   final validator;
   final keyboardType;
   final inputFormatters;
+  final maxLines;
 
   const RoundedInputField({
     Key key,
@@ -18,7 +19,8 @@ class RoundedInputField extends StatelessWidget {
     this.controller,
     this.validator,
     this.keyboardType,
-    this.inputFormatters
+    this.inputFormatters,
+    this.maxLines,
   }) : super(key: key);
 
   @override
@@ -31,6 +33,7 @@ class RoundedInputField extends StatelessWidget {
         validator: validator,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
+        maxLines: maxLines,
         decoration: InputDecoration(
           icon: Icon(
             icon,

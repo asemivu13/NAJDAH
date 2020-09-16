@@ -2,18 +2,20 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:geoflutterfire/geoflutterfire.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import 'package:najdah/screens/request_help.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:najdah/Design/rounded_button.dart';
+import 'package:najdah/Design/rounded_input_field.dart';
 import 'package:najdah/constants.dart';
+import 'package:najdah/screens/login_screen.dart';
+import 'package:najdah/services/auth.dart';
+import 'package:rxdart/rxdart.dart';
+
+// Variable Across the Widget
 LocationData myLocation;
 Location location = new Location();
-
-// TODO: CLEAN UP THE PROJECT
 
 class HomePage extends StatelessWidget {
   final TextEditingController _typeController = TextEditingController();
@@ -21,21 +23,20 @@ class HomePage extends StatelessWidget {
   final _requestHelpKey = GlobalKey<FormState>();
   BuildContext _context;
   final Geoflutterfire geo = new Geoflutterfire();
-  final String currentUserID = FirebaseAuth.instance.currentUser.uid;
-  final CollectionReference helpRequestsCollection =
-      FirebaseFirestore.instance.collection('help_requests');
-
+  Auth authService = new Auth();
+  final CollectionReference helpRequestsCollection = FirebaseFirestore.instance.collection('help_requests');
+  Size size;
 
   // Request Help by get your current location and save it to the database
-  // TODO: More information for the request
   Future requestHelp() async {
-    showInfo();
+    showHelpRequestSheet();
     GeoFirePoint geoFirePoint = geo.point(
         latitude: myLocation.latitude, longitude: myLocation.longitude);
   }
 
   @override
   Widget build(BuildContext context) {
+    size = MediaQuery.of(context).size;
     _context = context;
     return FutureBuilder(
       future: location.getLocation(),
@@ -43,16 +44,18 @@ class HomePage extends StatelessWidget {
         if (snapshot.data == null) {
           location.requestPermission();
           return MaterialApp(
+            debugShowCheckedModeBanner: false,
             home: Scaffold(
               body: Center(
-                child: const Text("Lodaing..."),
+                child: const CircularProgressIndicator(),
               ),
             ),
           );
         } else {
           myLocation = snapshot.data;
           return MaterialApp(
-            theme: new ThemeData(canvasColor: Colors.transparent),
+            debugShowCheckedModeBanner: false,
+            theme: new ThemeData(canvasColor: Colors.transparent, primaryColor: kPrimaryColor),
             home: Scaffold(
               body: MapWidget(), // :: TODO
               bottomNavigationBar: Container(
@@ -65,28 +68,22 @@ class HomePage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       mainAxisSize: MainAxisSize.max,
                       children: <Widget>[
-                        // TODO: CREATE FUNCTION TO WRAP THESE WIDGET INTO ONE WIDGET
                         Container(
                           child: IconButton(
-                            icon: Icon(Icons
-                                .keyboard_arrow_up), // TODO: CHANGE THE ICON MAYBE
-                            color: Colors.lightBlue,
-                            onPressed: () {
-                              // TODO: CREATE LIST OF EVERY REQUEST
-                            },
-                          ),
-                          margin: EdgeInsets.only(left: 10),
-                        ),
-                        Container(
-                          child: IconButton(
+                            tooltip: "Sign Out",
                             icon:
-                                Icon(Icons.menu), // TODO: CHANGE THE ICON MAYBE
-                            color: Colors.lightBlue,
+                                Icon(Icons.exit_to_app),
+                            color: kPrimaryColor,
                             onPressed: () {
-                              // TODO: CREATE THE MENU PAGE
+                              Navigator.pushReplacement(context, MaterialPageRoute(
+                                  builder: (BuildContext context) {
+                                    return LoginScreen();
+                                  }
+                              ));
                             },
                           ),
                           margin: EdgeInsets.only(left: 10),
+                          alignment: Alignment.bottomRight,
                         ),
                       ],
                     ),
@@ -96,12 +93,6 @@ class HomePage extends StatelessWidget {
               floatingActionButton: FloatingActionButton.extended(
                 onPressed: () {
                   requestHelp();
-//                  Navigator.pushReplacement(context, MaterialPageRoute(
-//                      builder: (BuildContext context) {
-//                        // return RequestHelpScreen ();
-//
-//                      }
-//                  ));
                 },
                 icon: Icon(Icons.add),
                 label: Text(
@@ -121,91 +112,78 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  void showInfo() {
+  void showHelpRequestSheet() {
     showModalBottomSheet(
         context: _context,
-        enableDrag: true,
         isScrollControlled: true,
         builder: (BuildContext context) {
           return Container(
-            color: Colors.transparent,
-            child: Container(
-              margin: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: new BorderRadius.all(Radius.circular(15.0))),
+              color: Colors.transparent,
               child: Container(
-                padding: EdgeInsets.all(16),
-                child: Center(
-                  child: Form(
-                      key: _requestHelpKey,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            Text(
-                              "Request Help",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 23,
+                  margin: EdgeInsets.all(10),
+
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: new BorderRadius.all(Radius.circular(15.0))
+                  ),
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          "REQUEST HELP",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 25),
+                        ),
+                        Form(
+                          key: _requestHelpKey,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              RoundedInputField(
+                                controller: _typeController,
+                                hintText: "Request Type",
+                                onChanged: (value) {},
+                                validator: (value) {
+                                  if (value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  return null;
+                                },
                               ),
-                            ),
-                            TextFormField(
-                              controller: _typeController,
-                              validator: (value) {
-                                if (value.isEmpty) {
-                                  return 'Enter Type of Help';
-                                }
-                                return null;
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Type of Help',
+                              RoundedInputField(
+                                controller: _descriptionController,
+                                hintText: "Description",
+                                onChanged: (value) {},
+                                maxLines: 6,
                               ),
-                            ),
-                            TextFormField(
-                              maxLines: 5,
-                              controller: _descriptionController,
-                              decoration: InputDecoration(
-                                labelText: 'Description',
-                              ),
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16.0),
-                              child: OutlineButton(
-                                onPressed: () {
-                                  // Validate returns true if the form is valid, or false
-                                  // otherwise.
+                              RoundedButton(
+                                text: "HELP",
+                                press: () {
                                   if (_requestHelpKey.currentState.validate()) {
                                     requestHelpMethod();
                                   }
                                 },
-                                child: Text(
-                                  'Help',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                borderSide: BorderSide(color: Colors.lightBlue),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      )),
-                ),
-              ),
-            ),
-            height: 350,
+                      ],
+                    ),
+                  )
           );
-        });
+        }
+    );
   }
 
   Future requestHelpMethod() async {
     GeoFirePoint geoFirePoint = geo.point(
         latitude: myLocation.latitude, longitude: myLocation.longitude);
-    return helpRequestsCollection.doc(currentUserID).set({
-      'owner': currentUserID,
+    User user = await authService.getCurrentUser();
+    Navigator.pop(_context);
+    return helpRequestsCollection.doc(user.uid).set({
+      'owner': user.uid,
       'location': geoFirePoint.data,
       'time': Timestamp.now(),
       'canHelp': 0,
@@ -213,7 +191,9 @@ class HomePage extends StatelessWidget {
       'description': _descriptionController.value.text,
     });
   }
+
 }
+
 
 class MapWidget extends StatefulWidget {
   @override
