@@ -47,7 +47,7 @@ class HomePage extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             home: Scaffold(
               body: Center(
-                child: const CircularProgressIndicator(),
+                child: const Text("Loading"),
               ),
             ),
           );
@@ -390,7 +390,7 @@ class _MapWidgetState extends State<MapWidget> {
                           debugShowCheckedModeBanner: false,
                           home: Scaffold(
                             body: Center(
-                              child: const CircularProgressIndicator(),
+                              child: const Text("Loading"),
                             ),
                           ),
                         );
@@ -517,7 +517,7 @@ class _InfoScreenState extends State<InfoScreen> {
             debugShowCheckedModeBanner: false,
             home: Scaffold(
               body: Center(
-                child: const CircularProgressIndicator(),
+                child: const Text("Loading"),
               ),
             ),
           );
