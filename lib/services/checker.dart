@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:najdah/main.dart';
 import 'package:najdah/screens/home_page.dart';
+import 'package:najdah/screens/login_screen.dart';
 import 'package:najdah/services/auth.dart';
 
 class Checker extends StatelessWidget {
@@ -18,15 +18,8 @@ class Checker extends StatelessWidget {
           } else {
             return LoginScreen();
           }
-        } else {
-          return MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: Text("Loading..."),
-              ),
-            ),
-          );
         }
+        return MaterialApp(home: Scaffold(body: Center(child: const Text("Lodaing..."),),));
       }
     );
   }

@@ -9,7 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:najdah/screens/request_help.dart';
 import 'package:rxdart/rxdart.dart';
-
+import 'package:najdah/constants.dart';
 LocationData myLocation;
 Location location = new Location();
 
@@ -45,7 +45,7 @@ class HomePage extends StatelessWidget {
           return MaterialApp(
             home: Scaffold(
               body: Center(
-                child: CircularProgressIndicator(),
+                child: const Text("Lodaing..."),
               ),
             ),
           );
