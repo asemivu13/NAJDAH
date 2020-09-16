@@ -14,7 +14,7 @@ import 'package:najdah/services/auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 // Variable Across the Widget
-LocationData myLocation;
+LocationData currentLocation;
 Location location = new Location();
 
 class HomePage extends StatelessWidget {
@@ -31,7 +31,7 @@ class HomePage extends StatelessWidget {
   Future requestHelp() async {
     showHelpRequestSheet();
     GeoFirePoint geoFirePoint = geo.point(
-        latitude: myLocation.latitude, longitude: myLocation.longitude);
+        latitude: currentLocation.latitude, longitude: currentLocation.longitude);
   }
 
   @override
@@ -52,7 +52,7 @@ class HomePage extends StatelessWidget {
             ),
           );
         } else {
-          myLocation = snapshot.data;
+          currentLocation = snapshot.data;
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: new ThemeData(canvasColor: Colors.transparent, primaryColor: kPrimaryColor),
@@ -75,6 +75,7 @@ class HomePage extends StatelessWidget {
                                 Icon(Icons.exit_to_app),
                             color: kPrimaryColor,
                             onPressed: () {
+                              authService.signOut();
                               Navigator.pushReplacement(context, MaterialPageRoute(
                                   builder: (BuildContext context) {
                                     return LoginScreen();
@@ -179,7 +180,7 @@ class HomePage extends StatelessWidget {
 
   Future requestHelpMethod() async {
     GeoFirePoint geoFirePoint = geo.point(
-        latitude: myLocation.latitude, longitude: myLocation.longitude);
+        latitude: currentLocation.latitude, longitude: currentLocation.longitude);
     User user = await authService.getCurrentUser();
     Navigator.pop(_context);
     return helpRequestsCollection.doc(user.uid).set({
@@ -201,20 +202,18 @@ class MapWidget extends StatefulWidget {
 }
 
 class _MapWidgetState extends State<MapWidget> {
-  static const double RADIUS =
-      10; // TODO: CHANGE THE RADIUS TO REASONABLE NUMBER
+  static const double RADIUS = 5;
   final Set<Marker> requestMarkers = new Set();
   final Set<Circle> circleSet = new Set();
   final Completer<GoogleMapController> _controller = Completer();
   StreamSubscription subscription;
   final Geoflutterfire geoflutterfire = Geoflutterfire();
-  final BehaviorSubject<double> circleRadiusBehavior =
-      BehaviorSubject.seeded(RADIUS);
+  final BehaviorSubject<double> circleRadiusBehavior = BehaviorSubject.seeded(RADIUS);
   bool enableInfoBottomSheet;
-
-  final CollectionReference requesterCollection =
-      FirebaseFirestore.instance.collection('requester');
-  CollectionReference helpRef;
+  bool doFunctionOnce = true;
+  final CollectionReference helpRef = FirebaseFirestore.instance.collection('canHelp');
+  final CollectionReference userRef = FirebaseFirestore.instance.collection("users");
+  final CollectionReference helpRequestRef = FirebaseFirestore.instance.collection('help_requests');
   @override
   void initState() {
     super.initState();
@@ -222,30 +221,22 @@ class _MapWidgetState extends State<MapWidget> {
       interval: 10000,
       accuracy: LocationAccuracy.high,
     );
-    location.onLocationChanged.listen((LocationData currentLocation) {
-      print(currentLocation);
-      myLocation = currentLocation;
-      storeToDatabase ();
+    location.onLocationChanged.listen((LocationData _location) {
+      currentLocation = _location;
+      storeLocationToDatabase ();
       getHelpRequest();
       getHelperMarker();
       updateLocation();
     });
     enableInfoBottomSheet = false;
   }
-  void storeToDatabase () async {
-    final CollectionReference userRef = FirebaseFirestore.instance.collection("users");
-    GeoPoint myGeo = new GeoPoint(myLocation.latitude, myLocation.longitude);
-    userRef.doc(FirebaseAuth.instance.currentUser.uid).set({
-      'location': myGeo,
-    });
-  }
   @override
   Widget build(BuildContext context) {
     CameraPosition defaultCameraPosition =
         CameraPosition(zoom: 14, tilt: 0, target: LatLng(0, 0));
-    if (myLocation != null) {
+    if (currentLocation != null) {
       defaultCameraPosition = CameraPosition(
-        target: LatLng(myLocation.latitude, myLocation.longitude),
+        target: LatLng(currentLocation.latitude, currentLocation.longitude),
         zoom: 14,
         tilt: 0,
       );
@@ -269,55 +260,71 @@ class _MapWidgetState extends State<MapWidget> {
     );
   }
 
+  void storeLocationToDatabase () async {
+    GeoPoint myGeo = new GeoPoint(currentLocation.latitude, currentLocation.longitude);
+    if (FirebaseAuth.instance.currentUser.uid != null) {
+      userRef.doc(FirebaseAuth.instance.currentUser.uid).update({
+        'location': myGeo,
+      });
+    }
+  }
   void updateLocation() async {
     // Update Camera position
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newLatLng(
-        LatLng(myLocation.latitude, myLocation.longitude)));
+    if (doFunctionOnce) {
+      final GoogleMapController controller = await _controller.future;
+      controller.animateCamera(CameraUpdate.newLatLng(
+          LatLng(currentLocation.latitude, currentLocation.longitude)));
+      doFunctionOnce = false;
+    }
   }
 
   void getHelpRequest() async {
-    var ref = FirebaseFirestore.instance.collection("help_requests");
-    GeoFirePoint geoCenterCurrentLocation = geoflutterfire.point(
-        latitude: myLocation.latitude, longitude: myLocation.longitude);
-    subscription = circleRadiusBehavior.switchMap((circleRadius) {
-      return geoflutterfire.collection(collectionRef: ref).within(
-          center: geoCenterCurrentLocation,
-          radius: circleRadius,
-          field: 'location',
-          strictMode: true);
-    }).listen(listenToMarkers);
+    if (FirebaseAuth.instance.currentUser.uid != null) {
+      GeoFirePoint geoCenterCurrentLocation = geoflutterfire.point(
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude);
+      subscription = circleRadiusBehavior.switchMap((circleRadius) {
+        return geoflutterfire.collection(collectionRef: helpRequestRef).within(
+            center: geoCenterCurrentLocation,
+            radius: circleRadius,
+            field: 'location',
+            strictMode: true);
+      }).listen(listenToMarkers);
+    }
   }
   void getHelperMarker () async {
-    helpRef = FirebaseFirestore.instance.collection("canHelp");
-    helpRef.doc(FirebaseAuth.instance.currentUser.uid).get().then((value) {
-      if (value.data() != null) {
-        value.data().forEach((key, _value) {
+    if (FirebaseAuth.instance.currentUser.uid != null) {
+      helpRef.doc(FirebaseAuth.instance.currentUser.uid).get().then((value) {
+        if (value.data() != null) {
+          value.data().forEach((key, _value) {
             listenToHelperMarkers(key, _value);
-        });
-      }
-    });
+          });
+        }
+      });
+    }
   }
   void listenToHelperMarkers(key,_value) {
     if(_value == true) {
-      var ref = FirebaseFirestore.instance.collection("users");
-      GeoPoint rvalue;
-      ref.doc(key).get().then((value) {
-        rvalue = value.data()['location'];
-        print(rvalue.longitude);
-        print(rvalue.latitude);
+      GeoPoint tempPoint;
+      userRef.doc(key).get().then((value) {
+        tempPoint = value.data()['location'];
+        print(tempPoint.longitude);
+        print(tempPoint.latitude);
         circleSet.add(Circle(
           circleId: CircleId(key),
-          center: LatLng(rvalue.latitude, rvalue.longitude),
+          center: LatLng(tempPoint.latitude, tempPoint.longitude),
           radius: 1,
+          fillColor: Colors.brown,
         ));
       });
     } else {
       circleSet.clear();
     }
-    setState(() {
+    if (mounted) {
+      setState(() {
 
-    });
+      });
+    }
   }
 
   String requesterID, description, type;
@@ -348,7 +355,9 @@ class _MapWidgetState extends State<MapWidget> {
             // return ShowInfo (requesterID: requesterID, description: description, type: type, canHelp: canHelp, time: time,);
           }));
     });
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   bool pressed = false;
@@ -370,23 +379,22 @@ class _MapWidgetState extends State<MapWidget> {
               child: Column(
                 children: [
                   StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(id)
-                        .snapshots(),
-                    builder:
-                        (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
+                    stream: userRef.doc(id).snapshots(),
+                    builder: (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
                       if (snapshot.hasError) {
                         print("Error");
                         return Container();
                       }
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        print("Loading");
-                        return Container();
+                        return MaterialApp(
+                          debugShowCheckedModeBanner: false,
+                          home: Scaffold(
+                            body: Center(
+                              child: const CircularProgressIndicator(),
+                            ),
+                          ),
+                        );
                       }
-                      print("SNAPSHOT ${snapshot.data.data().values}");
-                      print(
-                          "Also Data $id and $description and $type and $canHelp and $time");
                       return Container(
                         child: Column(
                           children: [
@@ -409,12 +417,11 @@ class _MapWidgetState extends State<MapWidget> {
   }
 
   void canHelpMethod(String id) {
-    helpRef.doc(id).get().then((value) {
-      print(value.data());
-    });
-    setState(() {
-      pressed = true;
-    });
+    if (mounted) {
+      setState(() {
+        pressed = true;
+      });
+    }
   }
 
   @override
@@ -422,38 +429,6 @@ class _MapWidgetState extends State<MapWidget> {
     circleRadiusBehavior.close();
     subscription.cancel();
     super.dispose();
-  }
-}
-
-class ShowInfo extends StatefulWidget {
-  final String requesterID, description, type;
-  final int canHelp;
-  final Timestamp time;
-  final BuildContext context;
-  ShowInfo(
-      {Key key,
-      this.requesterID,
-      this.description,
-      this.type,
-      this.canHelp,
-      this.time,
-      this.context})
-      : super(key: key);
-
-  @override
-  _ShowInfoState createState() => _ShowInfoState();
-}
-
-class _ShowInfoState extends State<ShowInfo> {
-  @override
-  Widget build(BuildContext context) {
-    String requesterID = widget.requesterID;
-    String description = widget.description;
-    String type = widget.type;
-    int canHelp = widget.canHelp;
-    Timestamp time = widget.time;
-    print("$requesterID and $description and $type and $canHelp and $time");
-    return Container();
   }
 }
 
@@ -472,13 +447,13 @@ class _InfoScreenState extends State<InfoScreen> {
   final int canHelp;
   final Timestamp time;
   var rvalue;
-  bool isDone = false;
+  bool changeButton = false;
   _InfoScreenState(this.requesterID, this.description, this.type, this.canHelp, this.time);
   final CollectionReference helpRef = FirebaseFirestore.instance.collection("canHelp");
+  bool requesterIsUser = true;
 
   @override
   Widget build(BuildContext context) {
-    print ("$requesterID and $description and $canHelp");
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(requesterID).snapshots(),
       builder: (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
@@ -489,62 +464,91 @@ class _InfoScreenState extends State<InfoScreen> {
         if (snapshot.hasData) {
           return FutureBuilder (
           future: helpRef.doc(requesterID).get().then((value) {
-            if (value.data().containsKey(FirebaseAuth.instance.currentUser.uid) && value.data()[FirebaseAuth.instance.currentUser.uid] == true) {
-              isDone = true;
-            } else {
-              isDone = false;
+            if (value.data().containsKey(FirebaseAuth.instance.currentUser.uid) != null) {
+              if (value.data()[FirebaseAuth.instance.currentUser.uid] == true) {
+                changeButton = true;
+              } else {
+                changeButton = false;
+              }
             }
           }),
-          builder: (context, snapshott) {
-            return MaterialApp(
-              home: Scaffold(
-                  body: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text("${snapshot.data.data()["name"]}"),
-                        Text("$type"),
-                        Text("$description"),
-                        RaisedButton(
-                          child: (snapshott.connectionState == ConnectionState.done) ? ((isDone) ? Text("Cancel Help") : Text("Can Help")) : Text("Loading"),
-                          onPressed: () {
-                            canHelpMethod(requesterID);
-                          },
-                        ),
-                      ],
+          builder: (context, f_snapshot) {
+            if (FirebaseAuth.instance.currentUser.uid == requesterID) {
+              return MaterialApp(
+                  home: Scaffold(
+                    body: Center(
+                      child:
+                        RoundedButton(
+                        text: "Delete Help Request",
+                        press: () {
+                          deleteRequest(requesterID);
+                        },
+                      ),
                     ),
                   )
-              ) ,
-            );
+              );
+            } else {
+              return MaterialApp(
+                home: Scaffold(
+                    body: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Request Detail", style: TextStyle(fontSize: 20),),
+                          Text("Requester Name : ${snapshot.data.data()["name"]}", style: TextStyle(fontSize: 20)),
+                          Text("Type of Request : $type", style: TextStyle(fontSize: 20)),
+                          Text("Descripition : $description", style: TextStyle(fontSize: 20)),
+                          RoundedButton(
+                            text: (f_snapshot.connectionState == ConnectionState.done) ? ((changeButton) ? "Cancel Help" : "Can Help") : "Loading",
+                            press: () {
+                              canHelpMethod(requesterID);
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                ) ,
+              );
+            }
           },
         );
         } else {
-          return Container(child: Center(child: Text("Loading..."),),);
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: Center(
+                child: const CircularProgressIndicator(),
+              ),
+            ),
+          );
         }
   }
     );
   }
+  void deleteRequest (String id) {
+    FirebaseFirestore.instance.collection('help_requests').doc(requesterID).delete();
+    Navigator.pop(context);
+  }
   void canHelpMethod(String id) {
     if (FirebaseAuth.instance.currentUser.uid == requesterID) {
-      helpRef.doc(id).get().then((value) {
-        print (value);
-      });
-      setState(() {
-        isDone = !isDone;
-      });
-    } else if (FirebaseAuth.instance.currentUser.uid != requesterID && isDone == false){
+      if (mounted) {
+        setState(() {
+          changeButton = !changeButton;
+        });
+      }
+    } else if (FirebaseAuth.instance.currentUser.uid != requesterID && changeButton == false){
       helpRef.doc(id).set({
         FirebaseAuth.instance.currentUser.uid: true,
       });
-    } else if (FirebaseAuth.instance.currentUser.uid != requesterID && isDone == true) {
+    } else if (FirebaseAuth.instance.currentUser.uid != requesterID && changeButton == true) {
       helpRef.doc(id).set({
         FirebaseAuth.instance.currentUser.uid: false,
       });
     }
-
-    // if my id != requester id show just add the number of people can help on the button
-    setState(() {
-      isDone = !isDone;
-    });
+    if (mounted) {
+      setState(() {
+        changeButton = !changeButton;
+      });
+    }
   }
 }
